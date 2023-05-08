@@ -1,4 +1,7 @@
 *.pyc
+.env/
+.vscode/
+examples/sample_data
 cache*
 dna_cache*
 examples/runs
