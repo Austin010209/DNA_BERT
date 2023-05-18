@@ -1,0 +1,12 @@
+CUDA_VISIBLE_DEVICES=6 python one_program.py & 
+CUDA_VISIBLE_DEVICES=4 python one_program.py & 
+CUDA_VISIBLE_DEVICES=5 python one_program.py & 
+
+
+(CUDA_VISIBLE_DEVICES=4 python one_program.py ; 
+CUDA_VISIBLE_DEVICES=5 python one_program.py) &
+(CUDA_VISIBLE_DEVICES=6 python one_program.py ;
+CUDA_VISIBLE_DEVICES=7 python one_program.py) &
+
+
+check out the jobs by "jobs" command. 

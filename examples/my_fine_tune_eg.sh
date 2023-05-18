@@ -1,6 +1,6 @@
 task=$1
-mkdir -p ./result/$KMER/$task
 export KMER=6
+mkdir -p ./result/$KMER/$task
 export DATA_PATH=./sample_data/ft/$KMER/$task
 export MODEL_PATH=./ft/$KMER
 export OUTPUT_PATH=./result/$KMER/$task

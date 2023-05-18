@@ -1,5 +1,6 @@
 *.pyc
 .env/
+.zshrc
 .vscode/
 examples/sample_data
 cache*
