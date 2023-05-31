@@ -35,7 +35,7 @@ python my_run_finetune.py \
     --max_seq_length 501 \
     --per_gpu_eval_batch_size=8   \
     --per_gpu_train_batch_size=8   \
-    --learning_rate 2e-5 \
+    --learning_rate 5e-5 \
     --num_train_epochs 5.0 \
     --output_dir $OUTPUT_PATH \
     --evaluate_during_training \

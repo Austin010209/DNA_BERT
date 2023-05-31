@@ -1,5 +1,5 @@
 numpy
-tokenizers==0.5.0
+tokenizers
 boto3
 filelock
 requests

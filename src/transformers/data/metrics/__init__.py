@@ -17,7 +17,7 @@
 try:
     from scipy.stats import pearsonr, spearmanr
     import numpy as np
-    from sklearn.metrics import matthews_corrcoef, precision_score, recall_score, f1_score, roc_auc_score, average_precision_score
+    from sklearn.metrics import matthews_corrcoef, precision_score, recall_score, f1_score, roc_auc_score, average_precision_score, log_loss
 
     _has_sklearn = True
 except (AttributeError, ImportError):
@@ -85,6 +85,27 @@ if _has_sklearn:
             "precision": precision,
             "recall": recall,
         }
+    
+    def acc_f1_mcc_auc_pre_rec_etc(preds, labels, probs):
+        acc = simple_accuracy(preds, labels)
+        precision = precision_score(y_true=labels, y_pred=preds, average="macro")
+        recall = recall_score(y_true=labels, y_pred=preds, average="macro")
+        f1 = f1_score(y_true=labels, y_pred=preds, average="macro")
+        mcc = matthews_corrcoef(labels, preds)
+        auroc = roc_auc_score(labels, probs, average="macro", multi_class="ovo")
+        valid_loss = log_loss(labels, probs)
+        auprc = average_precision_score(labels, probs)
+
+        return {
+            "acc": acc,
+            "f1": f1,
+            "mcc": mcc,
+            "auc": auroc,
+            "precision": precision,
+            "recall": recall,
+            "valid_loss": valid_loss,
+            "auprc": auprc
+        }
 
     def pearson_and_spearman(preds, labels):
         pearson_corr = pearsonr(preds, labels)[0]
@@ -104,7 +125,7 @@ if _has_sklearn:
         elif task_name in ["dna690", "dnapair"]:
             return acc_f1_mcc_auc_aupr_pre_rec(preds, labels, probs)
         elif task_name == "dnaprom":
-            return acc_f1_mcc_auc_pre_rec(preds, labels, probs)
+            return acc_f1_mcc_auc_pre_rec_etc(preds, labels, probs)
             # return {"acc": simple_accuracy(preds, labels)}
         elif task_name == "dnasplice":
             return acc_f1_mcc_auc_pre_rec(preds, labels, probs)

@@ -303,7 +303,7 @@ def train(args, train_dataset, model, tokenizer):
     stop_count = 0
 
     for _ in train_iterator:
-        epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
+        epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=True) # disable=args.local_rank not in [-1, 0]
         for step, batch in enumerate(epoch_iterator):
 
             # Skip past any already trained steps if resuming training
@@ -349,7 +349,7 @@ def train(args, train_dataset, model, tokenizer):
                     if (
                         args.local_rank == -1 and args.evaluate_during_training
                     ):  # Only evaluate when single GPU otherwise metrics may not average well
-                        results = evaluate(args, model, tokenizer)
+                        results = evaluate(args, model, tokenizer, training_loss=(tr_loss - logging_loss) / args.logging_steps)
 
 
                         if args.task_name == "dna690":
@@ -422,7 +422,7 @@ def train(args, train_dataset, model, tokenizer):
     return global_step, tr_loss / global_step
 
 
-def evaluate(args, model, tokenizer, prefix="", evaluate=True):
+def evaluate(args, model, tokenizer, prefix="", evaluate=True, training_loss=0):
     # Loop to handle MNLI double evaluation (matched, mis-matched)
     eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
     eval_outputs_dirs = (args.output_dir, args.output_dir + "-MM") if args.task_name == "mnli" else (args.output_dir,)
@@ -455,7 +455,7 @@ def evaluate(args, model, tokenizer, prefix="", evaluate=True):
         preds = None
         probs = None
         out_label_ids = None
-        for batch in tqdm(eval_dataloader, desc="Evaluating"):
+        for batch in tqdm(eval_dataloader, desc="Evaluating", disable = True):
             model.eval()
             batch = tuple(t.to(args.device) for t in batch)
 
@@ -499,18 +499,25 @@ def evaluate(args, model, tokenizer, prefix="", evaluate=True):
             eval_output_dir = args.result_dir
             if not os.path.exists(args.result_dir): 
                 os.makedirs(args.result_dir)
-        output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
+        parent_dir = os.path.join(eval_output_dir, prefix)
+        # training_loss
+        if "eval_results.tsv" not in os.listdir(parent_dir):
+            f = open(os.path.join(parent_dir, "eval_results.tsv"), "w")
+            keys_ = sorted(result.keys())
+            f.write("cell_type\t" + "\t".join(keys_) + "\ttrain_loss" + "\n")
+            f.close()
+        output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.tsv")
         with open(output_eval_file, "a") as writer:
-
             if args.task_name[:3] == "dna":
-                eval_result = args.data_dir.split('/')[-1] + " "
+                eval_result = args.data_dir.split('/')[-1] + "\t"
             else:
                 eval_result = ""
 
             logger.info("***** Eval results {} *****".format(prefix))
             for key in sorted(result.keys()):
                 logger.info("  %s = %s", key, str(result[key]))
-                eval_result = eval_result + str(result[key])[:5] + " "
+                eval_result = eval_result + str(result[key])[:5] + "\t"
+            eval_result +=  f"{str(training_loss)[:5]}\t"
             writer.write(eval_result + "\n")
 
     if args.do_ensemble_pred:
@@ -552,7 +559,7 @@ def predict(args, model, tokenizer, prefix=""):
         nb_pred_steps = 0
         preds = None
         out_label_ids = None
-        for batch in tqdm(pred_dataloader, desc="Predicting"):
+        for batch in tqdm(pred_dataloader, desc="Predicting", disable=True):
             model.eval()
             batch = tuple(t.to(args.device) for t in batch)
 
@@ -657,7 +664,7 @@ def visualize(args, model, tokenizer, kmer, prefix=""):
             preds = np.zeros([len(pred_dataset),3])
         attention_scores = np.zeros([len(pred_dataset), 12, args.max_seq_length, args.max_seq_length])
         
-        for index, batch in enumerate(tqdm(pred_dataloader, desc="Predicting")):
+        for index, batch in enumerate(tqdm(pred_dataloader, desc="Predicting", disable=True)):
             model.eval()
             batch = tuple(t.to(args.device) for t in batch)
 
@@ -1024,7 +1031,7 @@ def main():
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
     parser.add_argument("--server_ip", type=str, default="", help="For distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="For distant debugging.")
-
+    parser.add_argument("--pretrain", type=str, default="True", choices=["True", "False"], help="whether to use pretrained_version or not.")
 
     args = parser.parse_args()
 
@@ -1125,12 +1132,16 @@ def main():
             do_lower_case=args.do_lower_case,
             cache_dir=args.cache_dir if args.cache_dir else None,
         )
-        model = model_class.from_pretrained(
-            args.model_name_or_path,
-            from_tf=bool(".ckpt" in args.model_name_or_path),
-            config=config,
-            cache_dir=args.cache_dir if args.cache_dir else None,
-        )
+        if args.pretrain == "True":
+            model = model_class.from_pretrained(
+                args.model_name_or_path,
+                from_tf=bool(".ckpt" in args.model_name_or_path),
+                config=config,
+                cache_dir=args.cache_dir if args.cache_dir else None,
+            )
+        else:
+            logger.info("Training new model from scratch")
+            model = model_class(config=config)
         logger.info('finish loading model')
 
         if args.local_rank == 0:
