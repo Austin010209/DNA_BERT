@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=ctb-liyue
 #SBATCH --job-name=Ast1
-#SBATCH --gres=gpu:4
+#SBATCH --gres=gpu:5
 #SBATCH --cpus-per-task=6
 #SBATCH --mem=32G
 #SBATCH --time=04:00:00

@@ -1,3 +1,5 @@
+One model, leaning the cell type information of one cell type.
+
 python3.8 -m venv .env
 source .env/bin/activate
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
@@ -22,3 +24,24 @@ then
 echo "$i has."
 fi
 done
+
+
+./my_fine_tune_eval.sh End1 True None
+./my_fine_tune_eval.sh End2 True None
+./my_fine_tune_eval.sh ExN1 True None
+./my_fine_tune_eval.sh ExN1_L23 True None
+./my_fine_tune_eval.sh ExN1_L24 True None
+./my_fine_tune_eval.sh ExN1_L46 True None
+./my_fine_tune_eval.sh ExN1_L56 True None
+
+
+'Ast1', 'Ast2', 'Ast3', 'Ast4', 
+'End1', 'End2', 
+'ExN1', 'ExN1_L23', 'ExN1_L24', 'ExN1_L46', 'ExN1_L56', 
+'ExN2', 'ExN2_L23', 'ExN2_L46', 'ExN2_L56', 
+'ExN3_L46', 'ExN3_L56', 
+'ExN4_L56', 
+'InN3', 'In_LAMP5', 'In_PV', 'In_SST', 'In_VIP', 
+'Mic1', 'Mic2', 
+'OPC1', 'OPC2', 'OPC3', 'OPC4', 
+'Oli1', 'Oli2', 'Oli3', 'Oli4', 'Oli5', 'Oli6', 'Oli7'

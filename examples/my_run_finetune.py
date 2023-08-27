@@ -158,42 +158,6 @@ def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -
         shutil.rmtree(checkpoint)
 
 
-# def get_model_weight_gradient_stats(model, output_dir):
-#     result_list = []
-#     data_norm = 0
-#     grad_norm = 0
-#     for name, param in model.named_parameters():
-#         cur_data_norm = float(param.data.norm())
-#         cur_grad_norm = float(param.grad.norm())
-#         data_norm += cur_data_norm**2
-#         grad_norm += cur_grad_norm**2
-#         result_list.extend([str(cur_data_norm), str(cur_grad_norm)])
-#     result_list = [str(math.sqrt(data_norm)), str(math.sqrt(grad_norm))] + result_list
-
-#     f = open(os.path.join(output_dir, "model_results.tsv"), "a")
-#     f.write("\t".join(result_list) + "\n")
-#     f.close()
-    # for param in model.parameters():
-    #     # param is a "torch.nn.parameter.Parameter"
-    #     # param: .data, .dim(), .grad, .mean(), .name, .norm, .shape, .numel()
-    #     # print(param) == print(param.data) (the data are the same but probably it is a wrapper)
-    #     # param.dim(): 2
-    #     # param.requires_grad: True
-    #     # param.shape: (4101, 768)
-    #     print(param.shape)
-    #     print(param.numel())
-    #     print(param.grad.numel())
-    #     print(param.grad)
-    #     print("-"*100)
-    #     print(param.mean())
-    #     print(param.norm())
-    #     print("-"*100)
-    #     print(param.data.norm())
-    #     print(param.grad.norm())
-    #     # print(dir(param))
-    #     break
-
-
 def train(args, train_dataset, model, tokenizer):
     """ Train the model """
     if args.local_rank in [-1, 0]:
@@ -422,7 +386,7 @@ def train(args, train_dataset, model, tokenizer):
     return global_step, tr_loss / global_step
 
 
-def evaluate(args, model, tokenizer, prefix="", evaluate=True, training_loss=0):
+def evaluate(args, model, tokenizer, prefix="", evaluate=True, training_loss=0, test=False):
     # Loop to handle MNLI double evaluation (matched, mis-matched)
     eval_task_names = ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
     eval_outputs_dirs = (args.output_dir, args.output_dir + "-MM") if args.task_name == "mnli" else (args.output_dir,)
@@ -432,7 +396,7 @@ def evaluate(args, model, tokenizer, prefix="", evaluate=True, training_loss=0):
 
     results = {}
     for eval_task, eval_output_dir in zip(eval_task_names, eval_outputs_dirs):
-        eval_dataset = load_and_cache_examples(args, eval_task, tokenizer, evaluate=evaluate)
+        eval_dataset = load_and_cache_examples(args, eval_task, tokenizer, evaluate=evaluate, test=test) # this is changed
 
         if not os.path.exists(eval_output_dir) and args.local_rank in [-1, 0]:
             os.makedirs(eval_output_dir)
@@ -500,13 +464,17 @@ def evaluate(args, model, tokenizer, prefix="", evaluate=True, training_loss=0):
             if not os.path.exists(args.result_dir): 
                 os.makedirs(args.result_dir)
         parent_dir = os.path.join(eval_output_dir, prefix)
+        if test:
+            file_name = "test_results.tsv"
+        else:
+            file_name = "eval_results.tsv"
         # training_loss
-        if "eval_results.tsv" not in os.listdir(parent_dir):
-            f = open(os.path.join(parent_dir, "eval_results.tsv"), "w")
+        if file_name not in os.listdir(parent_dir):
+            f = open(os.path.join(parent_dir, file_name), "w")
             keys_ = sorted(result.keys())
             f.write("cell_type\t" + "\t".join(keys_) + "\ttrain_loss" + "\n")
             f.close()
-        output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.tsv")
+        output_eval_file = os.path.join(eval_output_dir, prefix, file_name)
         with open(output_eval_file, "a") as writer:
             if args.task_name[:3] == "dna":
                 eval_result = args.data_dir.split('/')[-1] + "\t"
@@ -730,17 +698,23 @@ def visualize(args, model, tokenizer, kmer, prefix=""):
 
 
 
-def load_and_cache_examples(args, task, tokenizer, evaluate=False):
+def load_and_cache_examples(args, task, tokenizer, evaluate=False, test=False):
     if args.local_rank not in [-1, 0] and not evaluate:
         torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
 
     processor = processors[task]()
     output_mode = output_modes[task]
     # Load data features from cache or dataset file
+    if test:
+        file_name = "test"
+    elif evaluate:
+        file_name = "dev"
+    else:
+        file_name = "train"
     cached_features_file = os.path.join(
         args.data_dir,
         "cached_{}_{}_{}_{}".format(
-            "dev" if evaluate else "train",
+            file_name,
             list(filter(None, args.model_name_or_path.split("/"))).pop(),
             str(args.max_seq_length),
             str(task),
@@ -750,7 +724,7 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
         cached_features_file = os.path.join(
         args.data_dir,
         "cached_{}_{}_{}".format(
-            "dev" if evaluate else "train",
+            file_name,
             str(args.max_seq_length),
             str(task),
         ),
@@ -1198,7 +1172,7 @@ def main():
 
             model = model_class.from_pretrained(checkpoint)
             model.to(args.device)
-            result = evaluate(args, model, tokenizer, prefix=prefix)
+            result = evaluate(args, model, tokenizer, prefix=prefix, test=True)
             result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
             results.update(result)
 
